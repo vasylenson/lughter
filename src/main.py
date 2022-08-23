@@ -161,7 +161,7 @@ def prepare_table(t: DataFrame) -> DataFrame:
     )
 
     # filter on valid temperature differences
-    t = t[t['ΔT_pri'] * t['ΔT_sec'] < 0]
+    t = t[t['ΔT_sec'] / t['ΔT_pri'] < 0]
 
     FINAL_SIZE = t.size
     debug(
