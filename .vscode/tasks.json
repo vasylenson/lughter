@@ -1,0 +1,17 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "run",
+            "type": "shell",
+            "command": "src/main.py",
+            "args": [
+                "in/1 E2021-09-01_2021-09-30 org.csv",
+                "-o out/result.csv"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}
