@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from pandas import DataFrame, read_csv
 
@@ -89,8 +89,13 @@ USE_COLS = {
     # '6/Dig41 - 4: koelbedrijf'
 }
 
+CSV_OPTIONS = {
+    'sep': ';',
+    'decimal': ',',
+}
 
-def parse_args():
+
+def parse_args() -> Namespace:
     parser = ArgumentParser('Process CSV logs')
 
     parser.add_argument('source_csv_path',
@@ -101,6 +106,10 @@ def parse_args():
     return parser.parse_args()
 
 
+def generate_report(table: DataFrame) -> DataFrame:
+    pass
+
+
 def main():
 
     args = parse_args()
@@ -109,9 +118,8 @@ def main():
     # read the file
     table: DataFrame = read_csv(
         args.source_csv_path,
-        sep=';',
-        decimal=',',
-        parse_dates={'Datum en tijd': ['Datum', 'Tijd']}
+        parse_dates={'Datum en tijd': ['Datum', 'Tijd']},
+        ** CSV_OPTIONS
     )
 
     # filter out invalid rows
@@ -127,8 +135,7 @@ def main():
 
     table.to_csv(
         out_path or f'./{args.source_csv_path[:-4] + "_Processed.csv"}',
-        sep=';',
-        decimal=','
+        ** CSV_OPTIONS
     )
 
 
