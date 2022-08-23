@@ -121,6 +121,11 @@ def prepare_table(t: DataFrame) -> DataFrame:
         delta = before - after
         return f'{str.format("{:,}", delta)} ({delta / before // 0.0001 / 100}%)'
 
+    debug(f'Starting with {str.format("{:,}", t.size)} rows')
+
+    # take one every 5 minutes
+    t = t.iloc[::5, :]
+
     INITIAL_SIZE = t.size
     debug(f'Filtering {str.format("{:,}", INITIAL_SIZE)} rows')
 
