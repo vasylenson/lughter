@@ -6,6 +6,8 @@ from pandas import DataFrame, read_csv
 
 from config import COOLING, HEATING, T_PRI_RET_LOWER, T_PRI_RET_UPPER, T_PRI_SUP_LOWER, T_PRI_SUP_UPPER, T_SEC_RET_LOWER, T_SEC_RET_UPPER, T_SEC_SUP_LOWER, T_SEC_SUP_UPPER
 
+DEBUG_MODE = True
+
 USE_COLS = {
     'Datum',
     'Tijd',
@@ -97,6 +99,11 @@ CSV_OPTIONS = {
 }
 
 
+def debug(*values, **kwargs):
+    if DEBUG_MODE:
+        print(*values, **kwargs)
+
+
 def parse_args() -> Namespace:
     parser = ArgumentParser('Process CSV logs')
 
@@ -110,6 +117,13 @@ def parse_args() -> Namespace:
 
 def prepare_table(t: DataFrame) -> DataFrame:
 
+    def delta_and_percent(before, after):
+        delta = before - after
+        return f'{str.format("{:,}", delta)} ({delta / before // 0.0001 / 100}%)'
+
+    INITIAL_SIZE = t.size
+    debug(f'Filtering {str.format("{:,}", INITIAL_SIZE)} rows')
+
     t_sec_sup = t['6/Anal8 - 11: T.sec.sup']
     t_sec_ret = t['6/Anal9 - 12: T.sec.ret.']
     t_pri_sup = t['6/Anal10 - 1: T.pri.sup']
@@ -119,9 +133,9 @@ def prepare_table(t: DataFrame) -> DataFrame:
     t = t[
         # status = AAN and alarm = UIT checks
         (t['6/Anal13 - 18: Status.well.pump'] == 0) &
-        (t['6/Anal14 - 19: Alarm.well.pump'] == 0) &
+        (t['6/Anal14 - 19: Alarm.well.pump'] == 1) &
         (t['6/Anal15 - 20: Status.heat.pump'] == 0) &
-        (t['6/Anal16 - 21: Alarm.heat.pump'] == 0) &
+        (t['6/Anal16 - 21: Alarm.heat.pump'] == 1) &
 
         # Temperature ranges checks (secondary cycle)
         (t_sec_sup >= T_SEC_SUP_LOWER) &
@@ -136,8 +150,11 @@ def prepare_table(t: DataFrame) -> DataFrame:
         (t_pri_ret < T_PRI_RET_UPPER)
     ]
 
-    # pre-compute temperature differences
+    PRIMARY_FILTERED_SIZE = t.size
+    debug('Discarded', delta_and_percent(INITIAL_SIZE, PRIMARY_FILTERED_SIZE),
+          'rows based on status and temperature levels')
 
+    # pre-compute temperature differences
     t = t.assign(
         ΔT_pri=(t_pri_ret - t_pri_sup),
         ΔT_sec=(t_sec_ret - t_sec_sup)
@@ -146,17 +163,20 @@ def prepare_table(t: DataFrame) -> DataFrame:
     # filter on valid temperature differences
     t = t[t['ΔT_pri'] * t['ΔT_sec'] < 0]
 
+    FINAL_SIZE = t.size
+    debug(
+        f'Discarded {delta_and_percent(PRIMARY_FILTERED_SIZE, FINAL_SIZE)} more rows because of invalid temperature differences')
+    debug(f'Total discarded rows while filtering:',
+          delta_and_percent(INITIAL_SIZE, FINAL_SIZE), '\n')
+
     return t
 
 
 def generate_flow_report(table: DataFrame) -> DataFrame:
-
+    debug('Generating water flow report...', end=' ')
     result = DataFrame()
-    print(result)
-
-    return
-
-    return filtered_table
+    debug('done')
+    return result
 
 
 def generate_temp_report(t: DataFrame):
@@ -175,10 +195,17 @@ def generate_temp_report(t: DataFrame):
     })
 
 
+def generate_energy_report(t: DataFrame):
+    return DataFrame({
+        'E_kb': [0],
+        'E_kb': [0],
+        'Productivity': [0]
+    })
+
+
 def main():
 
     args = parse_args()
-    print(args.out_path)
 
     # read the file
     table: DataFrame = read_csv(
@@ -187,7 +214,8 @@ def main():
         ** CSV_OPTIONS
     )
 
-    generate_temp_report(table)
+    prepared = prepare_table(table)
+    generate_flow_report(prepared)
     return
 
     output = generate_flow_report(table)  # process data
