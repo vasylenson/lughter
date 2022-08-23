@@ -165,9 +165,6 @@ def prepare_table(t: DataFrame) -> DataFrame:
         ΔT_sec=(t_sec_ret - t_sec_sup)
     )
 
-    # filter on valid temperature differences
-    t = t[t['ΔT_sec'] / t['ΔT_pri'] < 0]
-
     FINAL_SIZE = t.size
     debug(
         f'Discarded {delta_and_percent(PRIMARY_FILTERED_SIZE, FINAL_SIZE)} more rows because of invalid temperature differences')
