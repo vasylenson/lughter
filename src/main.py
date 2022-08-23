@@ -4,6 +4,8 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from pandas import DataFrame, read_csv
 
+from config import T_PRI_RET_LOWER, T_PRI_RET_UPPER, T_PRI_SUP_LOWER, T_PRI_SUP_UPPER, T_SEC_RET_LOWER, T_SEC_RET_UPPER, T_SEC_SUP_LOWER, T_SEC_SUP_UPPER
+
 USE_COLS = {
     'Datum',
     'Tijd',
@@ -20,9 +22,9 @@ USE_COLS = {
     '6/Anal11 - 2: T.pri.ret',
     # '6/Anal12 - 4: P.well.pump',
     '6/Anal13 - 18: Status.well.pump',
-    # '6/Anal14 - 19: Alarm.well.pump',
-    # '6/Anal15 - 20: Status.heat.pump',
-    # '6/Anal16 - 21: Alarm.heat.pump',
+    '6/Anal14 - 19: Alarm.well.pump',
+    '6/Anal15 - 20: Status.heat.pump',
+    '6/Anal16 - 21: Alarm.heat.pump',
     # '6/Anal17 - 3: p.prim.top.WHEx',
     '6/Anal18 - 13: Flow.heat.pump',
     # '6/Anal19 - 7: Impulsteller Tellerstand va',
@@ -106,14 +108,63 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
-def generate_report(table: DataFrame) -> DataFrame:
-    # filter out invalid rows
-    filtered_table = table[
-        (table['6/Anal13 - 18: Status.well.pump'] == 0) &
-        (table['6/Anal8 - 11: T.sec.sup'] < 20)
+def prepare_table(t: DataFrame) -> DataFrame:
+
+    t_sec_sup = t['6/Anal8 - 11: T.sec.sup']
+    t_sec_ret = t['6/Anal9 - 12: T.sec.ret.']
+    t_pri_sup = t['6/Anal10 - 1: T.pri.sup']
+    t_pri_ret = t['6/Anal11 - 2: T.pri.ret']
+
+    # pre-filter dat
+    t = t[
+        # status = AAN and alarm = UIT checks
+        (t['6/Anal13 - 18: Status.well.pump'] == 0) &
+        (t['6/Anal14 - 19: Alarm.well.pump'] == 0) &
+        (t['6/Anal15 - 20: Status.heat.pump'] == 0) &
+        (t['6/Anal16 - 21: Alarm.heat.pump'] == 0) &
+
+        # Temperature ranges checks (secondary cycle)
+        (t_sec_sup >= T_SEC_SUP_LOWER) &
+        (t_sec_sup < T_SEC_SUP_UPPER) &
+        (t_sec_ret >= T_SEC_RET_LOWER) &
+        (t_sec_ret < T_SEC_RET_UPPER) &
+
+        # Temperature ranges checks (primary cycle)
+        (t_pri_sup >= T_PRI_SUP_LOWER) &
+        (t_pri_sup < T_PRI_SUP_UPPER) &
+        (t_pri_ret >= T_PRI_RET_LOWER) &
+        (t_pri_ret < T_PRI_RET_UPPER)
     ]
 
+    # pre-compute temperature differences
+    t['ΔT_pri'] = t_pri_ret - t_pri_sup
+    t['ΔT_sec'] = t_sec_ret - t_sec_sup
+
+    # filter on valid temperature differences
+    t = t[t['ΔT_pri'] * t['ΔT_sec'] < 0]
+
+    return t
+
+
+def generate_flow_report(table: DataFrame) -> DataFrame:
+
+    result = DataFrame()
+    print(result)
+
+    return
+
     return filtered_table
+
+
+def generate_temp_report(table: DataFrame):
+    return DataFrame({
+        'Max. T primary sup': 0,
+        'Max. T primary dis': 0,
+        'Cooling - avg. T primary sup': 0,
+        'Cooling - avg. T primary dis': 0,
+        'Heating - avg. T primary sup': 0,
+        'Heating - avg. T primary dis': 0
+    })
 
 
 def main():
@@ -128,7 +179,7 @@ def main():
         ** CSV_OPTIONS
     )
 
-    output = generate_report(generate_report(table))  # process data
+    output = generate_flow_report(table)  # process data
 
     # resolve the output path and write the output to a file
 
