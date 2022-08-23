@@ -100,20 +100,26 @@ def parse_args() -> Namespace:
 
     parser.add_argument('source_csv_path',
                         help='Path to the CSV file with the logs', type=str)
-    parser.add_argument('-o', '--output_path',
+    parser.add_argument('-o', '--out_path',
                         help='Path to compiled result', type=str)
 
     return parser.parse_args()
 
 
 def generate_report(table: DataFrame) -> DataFrame:
-    pass
+    # filter out invalid rows
+    filtered_table = table[
+        (table['6/Anal13 - 18: Status.well.pump'] == 0) &
+        (table['6/Anal8 - 11: T.sec.sup'] < 20)
+    ]
+
+    return filtered_table
 
 
 def main():
 
     args = parse_args()
-    print(args.output_path)
+    print(args.out_path)
 
     # read the file
     table: DataFrame = read_csv(
@@ -122,21 +128,18 @@ def main():
         ** CSV_OPTIONS
     )
 
-    # filter out invalid rows
-    filtered_table = table[
-        (table['6/Anal13 - 18: Status.well.pump'] == 0) &
-        (table['6/Anal8 - 11: T.sec.sup'] < 20)
-    ]
+    output = generate_report(generate_report(table))  # process data
 
-    # write the output to a file
+    # resolve the output path and write the output to a file
 
-    out_path = Path(args.output_path)
+    out_path = Path(
+        args.out_path or
+        # FIXME: hacky str path manipulation
+        f'./{args.source_csv_path[:-4] + "_Processed.csv"}'
+    )
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    table.to_csv(
-        out_path or f'./{args.source_csv_path[:-4] + "_Processed.csv"}',
-        ** CSV_OPTIONS
-    )
+    output.to_csv(out_path, ** CSV_OPTIONS)
 
 
 if __name__ == '__main__':
