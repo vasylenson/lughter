@@ -4,7 +4,7 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from pandas import DataFrame, read_csv
 
-from config import T_PRI_RET_LOWER, T_PRI_RET_UPPER, T_PRI_SUP_LOWER, T_PRI_SUP_UPPER, T_SEC_RET_LOWER, T_SEC_RET_UPPER, T_SEC_SUP_LOWER, T_SEC_SUP_UPPER
+from config import COOLING, HEATING, T_PRI_RET_LOWER, T_PRI_RET_UPPER, T_PRI_SUP_LOWER, T_PRI_SUP_UPPER, T_SEC_RET_LOWER, T_SEC_RET_UPPER, T_SEC_SUP_LOWER, T_SEC_SUP_UPPER
 
 USE_COLS = {
     'Datum',
@@ -137,8 +137,11 @@ def prepare_table(t: DataFrame) -> DataFrame:
     ]
 
     # pre-compute temperature differences
-    t['ΔT_pri'] = t_pri_ret - t_pri_sup
-    t['ΔT_sec'] = t_sec_ret - t_sec_sup
+
+    t = t.assign(
+        ΔT_pri=(t_pri_ret - t_pri_sup),
+        ΔT_sec=(t_sec_ret - t_sec_sup)
+    )
 
     # filter on valid temperature differences
     t = t[t['ΔT_pri'] * t['ΔT_sec'] < 0]
@@ -156,14 +159,19 @@ def generate_flow_report(table: DataFrame) -> DataFrame:
     return filtered_table
 
 
-def generate_temp_report(table: DataFrame):
+def generate_temp_report(t: DataFrame):
+
+    t_pri_sup = t['6/Anal10 - 1: T.pri.sup']
+    t_pri_ret = t['6/Anal11 - 2: T.pri.ret']
+    mode = t['6/Anal4 - 4: koelbedrijf']
+
     return DataFrame({
-        'Max. T primary sup': 0,
-        'Max. T primary dis': 0,
-        'Cooling - avg. T primary sup': 0,
-        'Cooling - avg. T primary dis': 0,
-        'Heating - avg. T primary sup': 0,
-        'Heating - avg. T primary dis': 0
+        'Max. T primary sup': [t_pri_sup.max()],
+        'Max. T primary dis': [t_pri_ret.max()],
+        'Cooling - avg. T primary sup': [t_pri_sup[mode == COOLING].mean()],
+        'Cooling - avg. T primary dis': [t_pri_ret[mode == COOLING].mean()],
+        'Heating - avg. T primary sup': [t_pri_sup[mode == HEATING].mean()],
+        'Heating - avg. T primary dis': [t_pri_sup[mode == HEATING].mean()]
     })
 
 
@@ -178,6 +186,9 @@ def main():
         parse_dates={'Datum en tijd': ['Datum', 'Tijd']},
         ** CSV_OPTIONS
     )
+
+    generate_temp_report(table)
+    return
 
     output = generate_flow_report(table)  # process data
 
