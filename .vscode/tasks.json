@@ -10,7 +10,7 @@
             "args": [
                 "in/1 E2021-09-01_2021-09-30 org.csv",
                 "-o",
-                "out/result.csv"
+                "out/result.xlsx"
             ],
             "problemMatcher": []
         }

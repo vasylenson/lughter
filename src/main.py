@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from pandas import DataFrame, read_csv
+from pandas import DataFrame, ExcelWriter, read_csv
 
 from config import COOLING, HEATING, T_PRI_RET_LOWER, T_PRI_RET_UPPER, T_PRI_SUP_LOWER, T_PRI_SUP_UPPER, T_SEC_RET_LOWER, T_SEC_RET_UPPER, T_SEC_SUP_LOWER, T_SEC_SUP_UPPER
 
@@ -178,13 +178,10 @@ def prepare_table(t: DataFrame) -> DataFrame:
 
 
 def generate_flow_report(table: DataFrame) -> DataFrame:
-    debug('Generating water flow report...', end=' ')
-    result = DataFrame()
-    debug('done')
-    return result
+    return DataFrame()  # TODO
 
 
-def generate_temp_report(t: DataFrame):
+def generate_temp_report(t: DataFrame) -> DataFrame:
 
     t_pri_sup = t['6/Anal10 - 1: T.pri.sup']
     t_pri_ret = t['6/Anal11 - 2: T.pri.ret']
@@ -200,11 +197,11 @@ def generate_temp_report(t: DataFrame):
     })
 
 
-def generate_energy_report(t: DataFrame):
+def generate_energy_report(t: DataFrame) -> DataFrame:
     return DataFrame({
-        'E_kb': [0],
-        'E_kb': [0],
-        'Productivity': [0]
+        'E_kb': [0],  # TODO
+        'E_kb': [0],  # TODO
+        'Productivity': [0]  # TODO
     })
 
 
@@ -221,20 +218,22 @@ def main():
 
     prepared = prepare_table(table)
     generate_flow_report(prepared)
-    return
 
-    output = generate_flow_report(table)  # process data
+    # process data
+    prepared = prepare_table(table)
+    temp_report = generate_temp_report(prepared)
 
-    # resolve the output path and write the output to a file
-
+    # resolve the output path
     out_path = Path(
         args.out_path or
         # FIXME: hacky str path manipulation
-        f'./{args.source_csv_path[:-4] + "_Processed.csv"}'
+        f'./{args.source_csv_path[:-4] + "_report.xlsx"}'
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    output.to_csv(out_path, ** CSV_OPTIONS)
+    # write the output to a file
+    with ExcelWriter(out_path) as writer:
+        temp_report.to_excel(writer, sheet_name='Temperature report')
 
 
 if __name__ == '__main__':

@@ -21,3 +21,11 @@ python3 main.py <path to csv>
 ```
 
 ## Processing spec
+
+### General shape of the output
+
+The output is an `.xlsx` document with the following sheets:
+
+- Water flow report
+- Temperature report
+- Power report
