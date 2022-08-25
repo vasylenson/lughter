@@ -203,8 +203,8 @@ def generate_flow_report(t: DataFrame) -> DataFrame:
 
     }),
         DataFrame({
-            'E_kb': [E_kb],  # TODO
-            'E_vb': [E_vb],  # TODO
+            'E_kb': [E_kb],
+            'E_vb': [E_vb],
             'Productivity': [0]  # TODO
         }))
 
@@ -226,15 +226,16 @@ def generate_temp_report(t: DataFrame) -> DataFrame:
 
 
 def generate_energy_report(t: DataFrame) -> DataFrame:
+    # TODO extract this logic (currently within generate_flow_report())
 
     mode = t['6/Anal4 - 4: koelbedrijf']
     heating = t[mode == HEATING]
     cooling = t[mode == COOLING]
 
     return DataFrame({
-        'E_kb': [heating.ΔT_pri * heating],  # TODO
-        'E_kb': [0],  # TODO
-        'Productivity': [0]  # TODO
+        'E_kb': [heating.ΔT_pri * heating],
+        'E_kb': [0],
+        'Productivity': [0]
     })
 
 
