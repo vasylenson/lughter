@@ -256,10 +256,10 @@ def main():
     flow_report, energy_report = generate_flow_report(prepared)
 
     # resolve the output path
+    in_path = Path(args.source_csv_path)
     out_path = Path(
         args.out_path or
-        # FIXME: hacky str path manipulation
-        f'./{args.source_csv_path[:-4] + "_report.xlsx"}'
+        in_path.with_name(in_path.stem + "_report.xlsx")
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
