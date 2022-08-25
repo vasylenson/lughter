@@ -35,7 +35,7 @@ USE_COLS = {
     # '6/Anal22 - 9: Dauwpunt.buiten',
     # '6/Anal23 - 10: SV.buiten',
     # '6/Anal24 - 7: Impulsteller Totale tellers',
-    # '6/Anal25 - 9: Sample & Hold Uitkomst',
+    '6/Anal25 - 9: Sample & Hold Uitkomst',
     # '6/Anal26 - 5: Warmtemeting 1 Vermogen',
     # '6/Anal27 - 5: Warmtemeting 1 Tellerstand ',
     # '6/Anal28 - 5: Warmtemeting 1 Tellerstand ',
@@ -47,7 +47,7 @@ USE_COLS = {
     # '6/Anal34 - 6: Warmtemeting 2 Tellerstand ',
     # '6/Anal35 - 6: Warmtemeting 2 Tellerstand ',
     # '6/Anal36 - 6: Warmtemeting 2 kWh totaal',
-    # '6/Anal37 - 10: F.sec.hr Uitkomst',
+    '6/Anal37 - 10: F.sec.hr Uitkomst',
     # '6/Anal38 - 11: F.pri.hr Uitkomst',
     # '6/Anal39 - 14: F.pri.hr 2 Uitkomst',
     # '6/Dig1 - 1: Vrijgave Verwarming 1',
@@ -121,12 +121,12 @@ def prepare_table(t: DataFrame) -> DataFrame:
         delta = before - after
         return f'{str.format("{:,}", delta)} ({delta / before // 0.0001 / 100}%)'
 
-    debug(f'Starting with {str.format("{:,}", t.size)} rows')
+    debug(f'Starting with {str.format("{:,}", len(t.index))} rows')
 
     # take one every 5 minutes
     t = t.iloc[::5, :]
 
-    INITIAL_SIZE = t.size
+    INITIAL_SIZE = len(t.index)
     debug(f'Filtering {str.format("{:,}", INITIAL_SIZE)} rows')
 
     t_sec_sup = t['6/Anal8 - 11: T.sec.sup']
@@ -155,7 +155,7 @@ def prepare_table(t: DataFrame) -> DataFrame:
         (t_pri_ret < T_PRI_RET_UPPER)
     ]
 
-    PRIMARY_FILTERED_SIZE = t.size
+    PRIMARY_FILTERED_SIZE = len(t.index)
     debug('Discarded', delta_and_percent(INITIAL_SIZE, PRIMARY_FILTERED_SIZE),
           'rows based on status and temperature levels')
 
@@ -165,17 +165,40 @@ def prepare_table(t: DataFrame) -> DataFrame:
         ΔT_sec=(t_sec_ret - t_sec_sup)
     )
 
-    FINAL_SIZE = t.size
+    FINAL_SIZE = len(t.index)
     debug(
-        f'Discarded {delta_and_percent(PRIMARY_FILTERED_SIZE, FINAL_SIZE)} more rows because of invalid temperature differences')
-    debug(f'Total discarded rows while filtering:',
-          delta_and_percent(INITIAL_SIZE, FINAL_SIZE), '\n')
+        f'Discarded {delta_and_percent(PRIMARY_FILTERED_SIZE, FINAL_SIZE)} \
+more rows because of invalid temperature differences\n\
+Total discarded rows while filtering: \
+{delta_and_percent(INITIAL_SIZE, FINAL_SIZE)}\n'
+    )
 
     return t
 
 
-def generate_flow_report(table: DataFrame) -> DataFrame:
-    return DataFrame()  # TODO
+def generate_flow_report(t: DataFrame) -> DataFrame:
+
+   # back-calculate primary cycle flow
+    filtered = t[(t.ΔT_pri != 0) & (t.ΔT_sec * t.ΔT_pri >= 0)]
+    flow_pri_m3_5_min = filtered['6/Anal25 - 9: Sample & Hold Uitkomst'] * \
+        0.9425e-3 * filtered.ΔT_sec / filtered.ΔT_pri
+
+    flow_pri_m3_h = flow_pri_m3_5_min * 12
+    mode = t['6/Anal4 - 4: koelbedrijf']
+    in_cooling = flow_pri_m3_5_min[mode == COOLING].sum()
+    in_heating = flow_pri_m3_5_min[mode == HEATING].sum()
+
+    # TODO: just summing up the 5min mark, aggregation logic may need replacement ^
+
+    return DataFrame({
+        'Total water per month (m^3)': [flow_pri_m3_5_min.sum()],
+        'Total water per month (m^3) in cooling': [in_cooling],
+        'Total water per month (m^3) in heating': [in_heating],
+        'Total water per month (m^3) in heat exchange': [in_cooling + in_heating],
+        'Max. flow per hour (m^3)': [flow_pri_m3_h.max()],
+        'Ground water??': [0]  # TODO:  out what it meant
+
+    })
 
 
 def generate_temp_report(t: DataFrame) -> DataFrame:
@@ -213,12 +236,10 @@ def main():
         ** CSV_OPTIONS
     )
 
-    prepared = prepare_table(table)
-    generate_flow_report(prepared)
-
     # process data
     prepared = prepare_table(table)
     temp_report = generate_temp_report(prepared)
+    flow_report = generate_flow_report(prepared)
 
     # resolve the output path
     out_path = Path(
@@ -231,6 +252,7 @@ def main():
     # write the output to a file
     with ExcelWriter(out_path) as writer:
         temp_report.to_excel(writer, sheet_name='Temperature report')
+        flow_report.to_excel(writer, sheet_name='Water flow report')
 
 
 if __name__ == '__main__':
