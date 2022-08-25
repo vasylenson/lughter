@@ -190,7 +190,10 @@ def generate_flow_report(t: DataFrame) -> DataFrame:
 
     # TODO: just summing up the 5min mark, aggregation logic may need replacement ^
 
-    return DataFrame({
+    E_vb = t[mode == HEATING].ΔT_pri.sum() * in_heating * 1000 * 3.8 * 3e-5
+    E_kb = -t[mode == COOLING].ΔT_pri.sum() * in_heating * 1000 * 3.8 * 3e-5
+
+    return (DataFrame({
         'Total water per month (m^3)': [flow_pri_m3_5_min.sum()],
         'Total water per month (m^3) in cooling': [in_cooling],
         'Total water per month (m^3) in heating': [in_heating],
@@ -198,7 +201,12 @@ def generate_flow_report(t: DataFrame) -> DataFrame:
         'Max. flow per hour (m^3)': [flow_pri_m3_h.max()],
         'Ground water??': [0]  # TODO:  out what it meant
 
-    })
+    }),
+        DataFrame({
+            'E_kb': [E_kb],  # TODO
+            'E_vb': [E_vb],  # TODO
+            'Productivity': [0]  # TODO
+        }))
 
 
 def generate_temp_report(t: DataFrame) -> DataFrame:
@@ -213,13 +221,18 @@ def generate_temp_report(t: DataFrame) -> DataFrame:
         'Cooling - avg. T primary sup': [t_pri_sup[mode == COOLING].mean()],
         'Cooling - avg. T primary dis': [t_pri_ret[mode == COOLING].mean()],
         'Heating - avg. T primary sup': [t_pri_sup[mode == HEATING].mean()],
-        'Heating - avg. T primary dis': [t_pri_sup[mode == HEATING].mean()]
+        'Heating - avg. T primary dis': [t_pri_ret[mode == HEATING].mean()]
     })
 
 
 def generate_energy_report(t: DataFrame) -> DataFrame:
+
+    mode = t['6/Anal4 - 4: koelbedrijf']
+    heating = t[mode == HEATING]
+    cooling = t[mode == COOLING]
+
     return DataFrame({
-        'E_kb': [0],  # TODO
+        'E_kb': [heating.ΔT_pri * heating],  # TODO
         'E_kb': [0],  # TODO
         'Productivity': [0]  # TODO
     })
@@ -239,7 +252,7 @@ def main():
     # process data
     prepared = prepare_table(table)
     temp_report = generate_temp_report(prepared)
-    flow_report = generate_flow_report(prepared)
+    flow_report, energy_report = generate_flow_report(prepared)
 
     # resolve the output path
     out_path = Path(
@@ -253,6 +266,7 @@ def main():
     with ExcelWriter(out_path) as writer:
         temp_report.to_excel(writer, sheet_name='Temperature report')
         flow_report.to_excel(writer, sheet_name='Water flow report')
+        energy_report.to_excel(writer, sheet_name='Power report')
 
 
 if __name__ == '__main__':
