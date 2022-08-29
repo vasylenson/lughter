@@ -165,6 +165,8 @@ def prepare_table(t: DataFrame) -> DataFrame:
         ΔT_sec=(t_sec_ret - t_sec_sup)
     )
 
+    t = t[(t['ΔT_pri'].abs() >= 0.2) & (t['ΔT_sec'] / t['ΔT_pri'] > 0)]
+
     FINAL_SIZE = len(t.index)
     debug(
         f'Discarded {delta_and_percent(PRIMARY_FILTERED_SIZE, FINAL_SIZE)} \
@@ -199,13 +201,13 @@ def generate_flow_report(t: DataFrame) -> DataFrame:
         'Total water per month (m^3) in heating': [in_heating],
         'Total water per month (m^3) in heat exchange': [in_cooling + in_heating],
         'Max. flow per hour (m^3)': [flow_pri_m3_h.max()],
-        'Ground water??': [0]  # TODO:  out what it meant
+        'Ground water??': [0]  # TODO:  out what it meant - EXCLUDE
 
     }),
         DataFrame({
             'E_kb': [E_kb],
             'E_vb': [E_vb],
-            'Productivity': [0]  # TODO
+            'Productivity': [(E_kb + E_vb) / (in_cooling + in_heating)]
         }))
 
 
